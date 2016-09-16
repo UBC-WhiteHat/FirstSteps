@@ -1,0 +1,11 @@
+version: '2'
+
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: 'passwd'
+  sql_injection_server:
+    build: .
+    ports:
+      - '8888:8888'
