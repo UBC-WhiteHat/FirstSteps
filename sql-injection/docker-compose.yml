@@ -2,7 +2,7 @@ version: '2'
 
 services:
   postgres:
-    image: postgres
+    build: postgres
     environment:
       POSTGRES_PASSWORD: 'passwd'
   sql_injection_server:
