@@ -1,10 +1,12 @@
 import argparse
 import asyncio
+import sys
+from asyncio.streams import StreamWriter, FlowControlMixin
 
 async def stream_connect(reader, *writers):
     try:
         while True:
-            data = await reader.readline()
+            data = await reader.read(1)
             if data == b'':
                 break
             for writer in writers:
@@ -42,12 +44,9 @@ async def execute(args, loop):
     await listen_server(callback, host=args.host, port=args.port)
 
 async def listen(args, loop):
+    stdio_reader, stdio_writer = await connect_stdio()
     async def callback(reader, writer):
-        while not reader.at_eof():
-            data = await reader.read()
-            if data == b'':
-                reader.feed_eof()
-            print(data)
+        await stream_connect(reader,stdio_writer)
     server = await asyncio.start_server(callback, host=args.host, port=args.port)
     await server.wait_closed()
 
@@ -61,17 +60,38 @@ async def shell(args, loop):
             await run_process(command, reader, writer)
             writer.write(b'\n')
         await writer.drain()
-    await listen_server(callback, host=args.host, port=args.port)
+    ##await listen_server(callback, host=args.host, port=args.port)
+    server = await asyncio.start_server(callback, host=args.host, port=args.port)
+    await server.wait_closed()
+
 
 async def upload(args, loop):
     reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
     writer.write(args.file.read())
     await writer.drain()
 
-async def usage(args, loop):
-    print("Please specify a command.")
+async def connect_stdio(loop=None):
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    reader = asyncio.StreamReader()
+    reader_protocol = asyncio.StreamReaderProtocol(reader)
+    writer_transport, writer_protocol = await loop.connect_write_pipe(FlowControlMixin, sys.stdout)
+    writer = StreamWriter(writer_transport, writer_protocol, None, loop)
+    await loop.connect_read_pipe(lambda: reader_protocol, sys.stdin)
+    return reader, writer
+
+async def client(args, loop):
+    reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
+    stdio_reader, stdio_writer = await connect_stdio()
+    t = asyncio.ensure_future(stream_connect(stdio_reader,writer))
+    try:
+        await stream_connect(reader, stdio_writer)
+    finally:
+        t.cancel()
 
 if __name__ == '__main__':
+    async def usage(args, loop):
+        print(parser.usage)
     parser = argparse.ArgumentParser()
     parser.set_defaults(func=usage)
     parser.add_argument('host')
@@ -81,6 +101,9 @@ if __name__ == '__main__':
     execute_p = subparsers.add_parser('execute')
     execute_p.set_defaults(func=execute)
     execute_p.add_argument('command')
+
+    client_p = subparsers.add_parser('client')
+    client_p.set_defaults(func=client)
 
     listen_p = subparsers.add_parser('listen')
     listen_p.set_defaults(func=listen)
