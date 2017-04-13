@@ -7,4 +7,4 @@ Initial prototypes and gadgets written using python 3 with asyncio
 
 [TCP server](tcp-server): a utility TCP server with various functions (check the usage).
 
-[Perl-extract-xml-to-MySQL](perl automation script): vuln2db.pl: Extract vulnerability records detailed in NIST NVD XML files. Save the records into a database. 
+[Perl-extract-xml-to-MySQL](https://github.com/UBC-WhiteHat/FirstSteps/tree/master/Perl-extract-xml-to-MySQL): vuln2db.pl: Extract vulnerability records detailed in NIST NVD XML files. Save the records into a database. 
